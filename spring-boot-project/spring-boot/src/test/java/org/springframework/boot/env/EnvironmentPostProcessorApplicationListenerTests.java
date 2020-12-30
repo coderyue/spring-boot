@@ -20,6 +20,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import org.springframework.boot.BootstrapRegistry;
+import org.springframework.boot.DefaultBootstrapContext;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.boot.context.event.ApplicationFailedEvent;
@@ -45,20 +47,22 @@ class EnvironmentPostProcessorApplicationListenerTests {
 
 	private DeferredLogs deferredLogs = spy(new DeferredLogs());
 
+	private DefaultBootstrapContext bootstrapContext = spy(new DefaultBootstrapContext());
+
 	private EnvironmentPostProcessorApplicationListener listener = new EnvironmentPostProcessorApplicationListener(
-			EnvironmentPostProcessorsFactory.singleton(TestEnvironmentPostProcessor::new), this.deferredLogs);
+			EnvironmentPostProcessorsFactory.of(TestEnvironmentPostProcessor.class), this.deferredLogs);
 
 	@Test
 	void createUsesSpringFactories() {
 		EnvironmentPostProcessorApplicationListener listener = new EnvironmentPostProcessorApplicationListener();
-		assertThat(listener.getEnvironmentPostProcessors()).hasSizeGreaterThan(1);
+		assertThat(listener.getEnvironmentPostProcessors(this.bootstrapContext)).hasSizeGreaterThan(1);
 	}
 
 	@Test
 	void createWhenHasFactoryUsesFactory() {
 		EnvironmentPostProcessorApplicationListener listener = new EnvironmentPostProcessorApplicationListener(
-				EnvironmentPostProcessorsFactory.singleton(TestEnvironmentPostProcessor::new));
-		List<EnvironmentPostProcessor> postProcessors = listener.getEnvironmentPostProcessors();
+				EnvironmentPostProcessorsFactory.of(TestEnvironmentPostProcessor.class));
+		List<EnvironmentPostProcessor> postProcessors = listener.getEnvironmentPostProcessors(this.bootstrapContext);
 		assertThat(postProcessors).hasSize(1);
 		assertThat(postProcessors.get(0)).isInstanceOf(TestEnvironmentPostProcessor.class);
 	}
@@ -87,8 +91,8 @@ class EnvironmentPostProcessorApplicationListenerTests {
 	void onApplicationEventWhenApplicationEnvironmentPreparedEventCallsPostProcessors() {
 		SpringApplication application = mock(SpringApplication.class);
 		MockEnvironment environment = new MockEnvironment();
-		ApplicationEnvironmentPreparedEvent event = new ApplicationEnvironmentPreparedEvent(application, new String[0],
-				environment);
+		ApplicationEnvironmentPreparedEvent event = new ApplicationEnvironmentPreparedEvent(this.bootstrapContext,
+				application, new String[0], environment);
 		this.listener.onApplicationEvent(event);
 		assertThat(environment.getProperty("processed")).isEqualTo("true");
 	}
@@ -114,7 +118,9 @@ class EnvironmentPostProcessorApplicationListenerTests {
 
 	static class TestEnvironmentPostProcessor implements EnvironmentPostProcessor {
 
-		TestEnvironmentPostProcessor(DeferredLogFactory logFactory) {
+		TestEnvironmentPostProcessor(DeferredLogFactory logFactory, BootstrapRegistry bootstrapRegistry) {
+			assertThat(logFactory).isNotNull();
+			assertThat(bootstrapRegistry).isNotNull();
 		}
 
 		@Override

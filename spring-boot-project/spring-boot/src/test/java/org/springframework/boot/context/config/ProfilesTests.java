@@ -115,6 +115,16 @@ class ProfilesTests {
 	}
 
 	@Test
+	void getActiveWithProfileGroups() {
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty("spring.profiles.active", "a,b,c");
+		environment.setProperty("spring.profiles.group.a", "d,e");
+		Binder binder = Binder.get(environment);
+		Profiles profiles = new Profiles(environment, binder, null);
+		assertThat(profiles.getActive()).containsExactly("a", "d", "e", "b", "c");
+	}
+
+	@Test
 	void getActiveWhenHasAdditionalIncludesAdditional() {
 		MockEnvironment environment = new MockEnvironment();
 		environment.setProperty("spring.profiles.active", "a,b,c");
@@ -187,6 +197,16 @@ class ProfilesTests {
 		Binder binder = Binder.get(environment);
 		Profiles profiles = new Profiles(environment, binder, null);
 		assertThat(profiles.getDefault()).containsExactly("a", "b", "c");
+	}
+
+	@Test
+	void getDefaultWithProfileGroups() {
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty("spring.profiles.default", "a,b,c");
+		environment.setProperty("spring.profiles.group.a", "d,e");
+		Binder binder = Binder.get(environment);
+		Profiles profiles = new Profiles(environment, binder, null);
+		assertThat(profiles.getDefault()).containsExactly("a", "d", "e", "b", "c");
 	}
 
 	@Test
@@ -337,6 +357,37 @@ class ProfilesTests {
 		Profiles profiles = new Profiles(environment, binder, null);
 		assertThat(profiles.isAccepted("d")).isTrue();
 		assertThat(profiles.isAccepted("x")).isTrue();
+	}
+
+	@Test
+	void simpleRecursiveReferenceInProfileGroupIgnoresDuplicates() {
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty("spring.profiles.active", "a,b,c");
+		environment.setProperty("spring.profiles.group.a", "a,e,f");
+		Binder binder = Binder.get(environment);
+		Profiles profiles = new Profiles(environment, binder, null);
+		assertThat(profiles.getAccepted()).containsExactly("a", "e", "f", "b", "c");
+	}
+
+	@Test
+	void multipleRecursiveReferenceInProfileGroupIgnoresDuplicates() {
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty("spring.profiles.active", "a,b,c");
+		environment.setProperty("spring.profiles.group.a", "a,b,f");
+		Binder binder = Binder.get(environment);
+		Profiles profiles = new Profiles(environment, binder, null);
+		assertThat(profiles.getAccepted()).containsExactly("a", "b", "f", "c");
+	}
+
+	@Test
+	void complexRecursiveReferenceInProfileGroupIgnoresDuplicates() {
+		MockEnvironment environment = new MockEnvironment();
+		environment.setProperty("spring.profiles.active", "a,b,c");
+		environment.setProperty("spring.profiles.group.a", "e,f,g");
+		environment.setProperty("spring.profiles.group.e", "a,x,y,g");
+		Binder binder = Binder.get(environment);
+		Profiles profiles = new Profiles(environment, binder, null);
+		assertThat(profiles.getAccepted()).containsExactly("a", "e", "x", "y", "g", "f", "b", "c");
 	}
 
 }

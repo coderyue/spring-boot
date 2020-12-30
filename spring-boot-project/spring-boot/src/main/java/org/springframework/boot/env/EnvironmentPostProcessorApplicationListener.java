@@ -18,6 +18,7 @@ package org.springframework.boot.env;
 
 import java.util.List;
 
+import org.springframework.boot.ConfigurableBootstrapContext;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
 import org.springframework.boot.context.event.ApplicationFailedEvent;
@@ -46,7 +47,7 @@ public class EnvironmentPostProcessorApplicationListener implements SmartApplica
 
 	private int order = DEFAULT_ORDER;
 
-	private EnvironmentPostProcessorsFactory postProcessorsFactory;
+	private final EnvironmentPostProcessorsFactory postProcessorsFactory;
 
 	/**
 	 * Create a new {@link EnvironmentPostProcessorApplicationListener} with
@@ -84,25 +85,36 @@ public class EnvironmentPostProcessorApplicationListener implements SmartApplica
 		if (event instanceof ApplicationEnvironmentPreparedEvent) {
 			onApplicationEnvironmentPreparedEvent((ApplicationEnvironmentPreparedEvent) event);
 		}
-		if (event instanceof ApplicationPreparedEvent || event instanceof ApplicationFailedEvent) {
-			onFinish();
+		if (event instanceof ApplicationPreparedEvent) {
+			onApplicationPreparedEvent((ApplicationPreparedEvent) event);
+		}
+		if (event instanceof ApplicationFailedEvent) {
+			onApplicationFailedEvent((ApplicationFailedEvent) event);
 		}
 	}
 
 	private void onApplicationEnvironmentPreparedEvent(ApplicationEnvironmentPreparedEvent event) {
 		ConfigurableEnvironment environment = event.getEnvironment();
 		SpringApplication application = event.getSpringApplication();
-		for (EnvironmentPostProcessor postProcessor : getEnvironmentPostProcessors()) {
+		for (EnvironmentPostProcessor postProcessor : getEnvironmentPostProcessors(event.getBootstrapContext())) {
 			postProcessor.postProcessEnvironment(environment, application);
 		}
 	}
 
-	List<EnvironmentPostProcessor> getEnvironmentPostProcessors() {
-		return this.postProcessorsFactory.getEnvironmentPostProcessors(this.deferredLogs);
+	private void onApplicationPreparedEvent(ApplicationPreparedEvent event) {
+		finish();
 	}
 
-	private void onFinish() {
+	private void onApplicationFailedEvent(ApplicationFailedEvent event) {
+		finish();
+	}
+
+	private void finish() {
 		this.deferredLogs.switchOverAll();
+	}
+
+	List<EnvironmentPostProcessor> getEnvironmentPostProcessors(ConfigurableBootstrapContext bootstrapContext) {
+		return this.postProcessorsFactory.getEnvironmentPostProcessors(this.deferredLogs, bootstrapContext);
 	}
 
 	@Override

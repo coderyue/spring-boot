@@ -57,20 +57,18 @@ import org.springframework.boot.configurationprocessor.metadata.ItemMetadata;
  * @author Jonas Keßler
  * @since 1.2.0
  */
-@SupportedAnnotationTypes({ "*" })
+@SupportedAnnotationTypes({ ConfigurationMetadataAnnotationProcessor.CONFIGURATION_PROPERTIES_ANNOTATION,
+		ConfigurationMetadataAnnotationProcessor.ENDPOINT_ANNOTATION,
+		"org.springframework.context.annotation.Configuration" })
 public class ConfigurationMetadataAnnotationProcessor extends AbstractProcessor {
 
-	static final String ADDITIONAL_METADATA_LOCATIONS_OPTION = "org.springframework.boot."
-			+ "configurationprocessor.additionalMetadataLocations";
+	static final String ADDITIONAL_METADATA_LOCATIONS_OPTION = "org.springframework.boot.configurationprocessor.additionalMetadataLocations";
 
-	static final String CONFIGURATION_PROPERTIES_ANNOTATION = "org.springframework.boot."
-			+ "context.properties.ConfigurationProperties";
+	static final String CONFIGURATION_PROPERTIES_ANNOTATION = "org.springframework.boot.context.properties.ConfigurationProperties";
 
-	static final String NESTED_CONFIGURATION_PROPERTY_ANNOTATION = "org.springframework.boot."
-			+ "context.properties.NestedConfigurationProperty";
+	static final String NESTED_CONFIGURATION_PROPERTY_ANNOTATION = "org.springframework.boot.context.properties.NestedConfigurationProperty";
 
-	static final String DEPRECATED_CONFIGURATION_PROPERTY_ANNOTATION = "org.springframework.boot."
-			+ "context.properties.DeprecatedConfigurationProperty";
+	static final String DEPRECATED_CONFIGURATION_PROPERTY_ANNOTATION = "org.springframework.boot.context.properties.DeprecatedConfigurationProperty";
 
 	static final String CONSTRUCTOR_BINDING_ANNOTATION = "org.springframework.boot.context.properties.ConstructorBinding";
 
@@ -78,8 +76,7 @@ public class ConfigurationMetadataAnnotationProcessor extends AbstractProcessor 
 
 	static final String ENDPOINT_ANNOTATION = "org.springframework.boot.actuate.endpoint.annotation.Endpoint";
 
-	static final String READ_OPERATION_ANNOTATION = "org.springframework.boot.actuate."
-			+ "endpoint.annotation.ReadOperation";
+	static final String READ_OPERATION_ANNOTATION = "org.springframework.boot.actuate.endpoint.annotation.ReadOperation";
 
 	static final String NAME_ANNOTATION = "org.springframework.boot.context.properties.bind.Name";
 
@@ -259,7 +256,7 @@ public class ConfigurationMetadataAnnotationProcessor extends AbstractProcessor 
 	private void processEndpoint(AnnotationMirror annotation, TypeElement element) {
 		Map<String, Object> elementValues = this.metadataEnv.getAnnotationElementValues(annotation);
 		String endpointId = (String) elementValues.get("id");
-		if (endpointId == null || "".equals(endpointId)) {
+		if (endpointId == null || endpointId.isEmpty()) {
 			return; // Can't process that endpoint
 		}
 		String endpointKey = ItemMetadata.newItemMetadataPrefix("management.endpoint.", endpointId);

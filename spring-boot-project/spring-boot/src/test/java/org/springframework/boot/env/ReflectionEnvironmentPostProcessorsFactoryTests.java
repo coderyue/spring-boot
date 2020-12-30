@@ -24,6 +24,8 @@ import java.util.function.Supplier;
 import org.apache.commons.logging.Log;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.boot.BootstrapRegistry;
+import org.springframework.boot.DefaultBootstrapContext;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.logging.DeferredLogFactory;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -39,6 +41,8 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 class ReflectionEnvironmentPostProcessorsFactoryTests {
 
 	private final DeferredLogFactory logFactory = Supplier::get;
+
+	private final DefaultBootstrapContext bootstrapContext = new DefaultBootstrapContext();
 
 	@Test
 	void createWithClassesCreatesFactory() {
@@ -83,10 +87,18 @@ class ReflectionEnvironmentPostProcessorsFactoryTests {
 	}
 
 	@Test
+	void getEnvironmentPostProcessorsWhenHasBootstrapRegistryConstructorCreatesPostProcessors() {
+		ReflectionEnvironmentPostProcessorsFactory factory = new ReflectionEnvironmentPostProcessorsFactory(
+				TestBootstrapRegistryEnvironmentPostProcessor.class.getName());
+		assertThatFactory(factory).createsSinglePostProcessor(TestBootstrapRegistryEnvironmentPostProcessor.class);
+	}
+
+	@Test
 	void getEnvironmentPostProcessorsWhenHasNoSuitableConstructorThrowsException() {
 		ReflectionEnvironmentPostProcessorsFactory factory = new ReflectionEnvironmentPostProcessorsFactory(
 				BadEnvironmentPostProcessor.class.getName());
-		assertThatIllegalArgumentException().isThrownBy(() -> factory.getEnvironmentPostProcessors(this.logFactory))
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> factory.getEnvironmentPostProcessors(this.logFactory, this.bootstrapContext))
 				.withMessageContaining("Unable to instantiate");
 	}
 
@@ -103,8 +115,9 @@ class ReflectionEnvironmentPostProcessorsFactoryTests {
 		}
 
 		void createsSinglePostProcessor(Class<?> expectedType) {
-			List<EnvironmentPostProcessor> processors = this.factory
-					.getEnvironmentPostProcessors(ReflectionEnvironmentPostProcessorsFactoryTests.this.logFactory);
+			List<EnvironmentPostProcessor> processors = this.factory.getEnvironmentPostProcessors(
+					ReflectionEnvironmentPostProcessorsFactoryTests.this.logFactory,
+					ReflectionEnvironmentPostProcessorsFactoryTests.this.bootstrapContext);
 			assertThat(processors).hasSize(1);
 			assertThat(processors.get(0)).isInstanceOf(expectedType);
 		}
@@ -135,6 +148,18 @@ class ReflectionEnvironmentPostProcessorsFactoryTests {
 
 		TestLogEnvironmentPostProcessor(Log log) {
 			assertThat(log).isNotNull();
+		}
+
+		@Override
+		public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+		}
+
+	}
+
+	static class TestBootstrapRegistryEnvironmentPostProcessor implements EnvironmentPostProcessor {
+
+		TestBootstrapRegistryEnvironmentPostProcessor(BootstrapRegistry bootstrapRegistry) {
+			assertThat(bootstrapRegistry).isNotNull();
 		}
 
 		@Override
