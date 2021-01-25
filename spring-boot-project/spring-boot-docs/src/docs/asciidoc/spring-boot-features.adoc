@@ -3462,29 +3462,25 @@ The following example shows programmatically setting the port:
 	}
 ----
 
-NOTE: `TomcatServletWebServerFactory`, `JettyServletWebServerFactory` and `UndertowServletWebServerFactory` are dedicated variants of `ConfigurableServletWebServerFactory` that have additional customization setter methods for Tomcat, Jetty and Undertow respectively.
+`TomcatServletWebServerFactory`, `JettyServletWebServerFactory` and `UndertowServletWebServerFactory` are dedicated variants of `ConfigurableServletWebServerFactory` that have additional customization setter methods for Tomcat, Jetty and Undertow respectively.
+The following example shows how to customize `TomcatServletWebServerFactory` that provides access to Tomcat-specific configuration options:
+
+[source,java,indent=0,subs="verbatim,quotes,attributes"]
+----
+include::{code-examples}/context/embedded/TomcatServerCustomizerExample.java[tag=configuration]
+----
 
 
 
 [[boot-features-customizing-configurableservletwebserverfactory-directly]]
 ===== Customizing ConfigurableServletWebServerFactory Directly
-If the preceding customization techniques are too limited, you can register the `TomcatServletWebServerFactory`, `JettyServletWebServerFactory`, or `UndertowServletWebServerFactory` bean yourself.
-
-[source,java,indent=0]
-----
-	@Bean
-	public ConfigurableServletWebServerFactory webServerFactory() {
-		TomcatServletWebServerFactory factory = new TomcatServletWebServerFactory();
-		factory.setPort(9000);
-		factory.setSessionTimeout(10, TimeUnit.MINUTES);
-		factory.addErrorPages(new ErrorPage(HttpStatus.NOT_FOUND, "/notfound.html"));
-		return factory;
-	}
-----
+For more advanced use cases that require you to extend from `ServletWebServerFactory`, you can expose a bean of such type yourself.
 
 Setters are provided for many configuration options.
 Several protected method "`hooks`" are also provided should you need to do something more exotic.
 See the {spring-boot-module-api}/web/servlet/server/ConfigurableServletWebServerFactory.html[source code documentation] for details.
+
+NOTE: Auto-configured customizers are still applied on your custom factory, so use that option carefully.
 
 
 
@@ -3964,10 +3960,10 @@ You can register multiple relying parties under the `spring.security.saml2.relyi
 
 [[boot-features-security-actuator]]
 === Actuator Security
-For security purposes, all actuators other than `/health` and `/info` are disabled by default.
+For security purposes, all actuators other than `/health` are disabled by default.
 The configprop:management.endpoints.web.exposure.include[] property can be used to enable the actuators.
 
-If Spring Security is on the classpath and no other `WebSecurityConfigurerAdapter` or `SecurityFilterChain` bean is present, all actuators other than `/health` and `/info` are secured by Spring Boot auto-configuration.
+If Spring Security is on the classpath and no other `WebSecurityConfigurerAdapter` or `SecurityFilterChain` bean is present, all actuators other than `/health` are secured by Spring Boot auto-configuration.
 If you define a custom `WebSecurityConfigurerAdapter` or `SecurityFilterChain` bean, Spring Boot auto-configuration will back off and you will be in full control of actuator access rules.
 
 NOTE: Before setting the `management.endpoints.web.exposure.include`, ensure that the exposed actuators do not contain sensitive information and/or are secured by placing them behind a firewall or by something like Spring Security.
@@ -4433,19 +4429,8 @@ NOTE: Spring Boot can only auto-configure dialects supported by the open source 
 
 
 ==== Customizing jOOQ
-More advanced customizations can be achieved by defining your own `@Bean` definitions, which is used when the jOOQ `Configuration` is created.
-You can define beans for the following jOOQ Types:
-
-* `ConnectionProvider`
-* `ExecutorProvider`
-* `TransactionProvider`
-* `RecordMapperProvider`
-* `RecordUnmapperProvider`
-* `Settings`
-* `RecordListenerProvider`
-* `ExecuteListenerProvider`
-* `VisitListenerProvider`
-* `TransactionListenerProvider`
+More advanced customizations can be achieved by defining your own `DefaultConfigurationCustomizer` bean that will be invoked prior to creating the `org.jooq.Configuration` `@Bean`.
+This takes precedence to anything that is applied by the auto-configuration.
 
 You can also create your own `org.jooq.Configuration` `@Bean` if you want to take complete control of the jOOQ configuration.
 
@@ -4594,7 +4579,6 @@ Spring Data provides additional projects that help you access a variety of NoSQL
 * {spring-data-mongodb}[MongoDB]
 * {spring-data-neo4j}[Neo4J]
 * {spring-data-elasticsearch}[Elasticsearch]
-* {spring-data-solr}[Solr]
 * {spring-data-redis}[Redis]
 * {spring-data-gemfire}[GemFire] or {spring-data-geode}[Geode]
 * {spring-data-cassandra}[Cassandra]
@@ -4901,8 +4885,7 @@ include::{code-examples}/neo4j/Neo4jReactiveTransactionManagerExample.java[tag=c
 [[boot-features-solr]]
 === Solr
 https://lucene.apache.org/solr/[Apache Solr] is a search engine.
-Spring Boot offers basic auto-configuration for the Solr 5 client library and the abstractions on top of it provided by https://github.com/spring-projects/spring-data-solr[Spring Data Solr].
-There is a `spring-boot-starter-data-solr` "`Starter`" for collecting the dependencies in a convenient way.
+Spring Boot offers basic auto-configuration for the Solr 5 client library.
 
 
 
@@ -4930,18 +4913,6 @@ The following example shows how to inject a Solr bean:
 ----
 
 If you add your own `@Bean` of type `SolrClient`, it replaces the default.
-
-
-
-[[boot-features-spring-data-solr-repositories]]
-==== Spring Data Solr Repositories
-Spring Data includes repository support for Apache Solr.
-As with the JPA repositories discussed earlier, the basic principle is that queries are automatically constructed for you based on method names.
-
-In fact, both Spring Data JPA and Spring Data Solr share the same common infrastructure.
-You could take the JPA example from earlier and, assuming that `City` is now a `@SolrDocument` class rather than a JPA `@Entity`, it works in the same way.
-
-IP: For complete details of Spring Data Solr, refer to the {spring-data-solr-docs}[reference documentation].
 
 
 
@@ -6487,7 +6458,6 @@ When a `jndi-name` is set, it takes precedence over all other Session-related se
 [[boot-features-jta]]
 == Distributed Transactions with JTA
 Spring Boot supports distributed JTA transactions across multiple XA resources by using an https://www.atomikos.com/[Atomikos] embedded transaction manager.
-Deprecated support for using a https://github.com/bitronix/btm[Bitronix] embedded transaction manager is also provided but it will be removed in a future release.
 JTA transactions are also supported when deploying to a suitable Java EE Application Server.
 
 When a JTA environment is detected, Spring's `JtaTransactionManager` is used to manage transactions.
@@ -6510,24 +6480,6 @@ See the {spring-boot-module-api}/jta/atomikos/AtomikosProperties.html[`AtomikosP
 
 NOTE: To ensure that multiple transaction managers can safely coordinate the same resource managers, each Atomikos instance must be configured with a unique ID.
 By default, this ID is the IP address of the machine on which Atomikos is running.
-To ensure uniqueness in production, you should configure the configprop:spring.jta.transaction-manager-id[] property with a different value for each instance of your application.
-
-
-
-[[boot-features-jta-bitronix]]
-=== Using a Bitronix Transaction Manager
-NOTE: As of Spring Boot 2.3, support for Bitronix has been deprecated and will be removed in a future release.
-
-You can use the `spring-boot-starter-jta-bitronix` starter to add the appropriate Bitronix dependencies to your project.
-As with Atomikos, Spring Boot automatically configures Bitronix and post-processes your beans to ensure that startup and shutdown ordering is correct.
-
-By default, Bitronix transaction log files (`part1.btm` and `part2.btm`) are written to a `transaction-logs` directory in your application home directory.
-You can customize the location of this directory by setting the configprop:spring.jta.log-dir[] property.
-Properties starting with `spring.jta.bitronix.properties` are also bound to the `bitronix.tm.Configuration` bean, allowing for complete customization.
-See the https://github.com/bitronix/btm/wiki/Transaction-manager-configuration[Bitronix documentation] for details.
-
-NOTE: To ensure that multiple transaction managers can safely coordinate the same resource managers, each Bitronix instance must be configured with a unique ID.
-By default, this ID is the IP address of the machine on which Bitronix is running.
 To ensure uniqueness in production, you should configure the configprop:spring.jta.transaction-manager-id[] property with a different value for each instance of your application.
 
 
@@ -8092,8 +8044,10 @@ Alternatively, you can specify a source for your test, which disables the behavi
 ==== Using Spock to Test Spring Boot Applications
 If you wish to use Spock to test a Spring Boot application, you should add a dependency on Spock's `spock-spring` module to your application's build.
 `spock-spring` integrates Spring's test framework into Spock.
-It is recommended that you use Spock 1.2 or later to benefit from a number of improvements to Spock's Spring Framework and Spring Boot integration.
-See http://spockframework.org/spock/docs/1.2/modules.html#_spring_module[the documentation for Spock's Spring module] for further details.
+See http://spockframework.org/spock/docs/2.0-M4/modules.html#_spring_module[the documentation for Spock's Spring module] for further details.
+
+NOTE: As of Spring Boot 2.5.x and its support for Groovy 3.x you have two options to make use of Spock:
+Either use the latest Spock 2.0 milestone or release that is compatible with Groovy 3.x or stick with Spock 1.3 and downgrade Spring Boot's Groovy version to 2.5.x.
 
 
 
@@ -8476,7 +8430,7 @@ The following example shows how to use the `ConditionEvaluationReportLoggingList
 [source,java,indent=0]
 ----
 	@Test
-	public void autoConfigTest {
+	void autoConfigTest() {
 		ConditionEvaluationReportLoggingListener initializer = new ConditionEvaluationReportLoggingListener(
 				LogLevel.INFO);
 		ApplicationContextRunner contextRunner = new ApplicationContextRunner()

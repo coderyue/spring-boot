@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2021 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -136,6 +136,13 @@ class ConfigDataEnvironmentPostProcessorIntegrationTests {
 	}
 
 	@Test
+	void runWhenPropertiesAndYamlShouldPreferProperties() {
+		ConfigurableApplicationContext context = this.application.run();
+		String property = context.getEnvironment().getProperty("duplicate");
+		assertThat(property).isEqualTo("properties");
+	}
+
+	@Test
 	void runWhenMultipleCustomNamesLoadsEachName() {
 		ConfigurableApplicationContext context = this.application
 				.run("--spring.config.name=moreproperties,testproperties");
@@ -184,6 +191,21 @@ class ConfigDataEnvironmentPostProcessorIntegrationTests {
 				"--spring.config.location=classpath:application.properties,classpath:testproperties.properties,optional:classpath:nonexistent.properties");
 		String property = context.getEnvironment().getProperty("the.property");
 		assertThat(property).isEqualTo("frompropertiesfile");
+	}
+
+	@Test
+	void runWhenProfileSpecificMandatoryLocationDoesNotExistShouldNotFail() {
+		ConfigurableApplicationContext context = this.application.run("--spring.config.name=testprofiles",
+				"--spring.config.location=classpath:configdata/profiles/");
+		String property = context.getEnvironment().getProperty("my.property");
+		assertThat(property).isEqualTo("fromyamlfile");
+	}
+
+	@Test
+	void runWhenProfileSpecificMandatoryLocationDoesNotExistShouldFailWhenProfileActive() {
+		this.application.setAdditionalProfiles("prod");
+		assertThatExceptionOfType(ConfigDataResourceNotFoundException.class).isThrownBy(() -> this.application
+				.run("--spring.config.name=testprofiles", "--spring.config.location=classpath:configdata/profiles/"));
 	}
 
 	@Test
@@ -615,8 +637,14 @@ class ConfigDataEnvironmentPostProcessorIntegrationTests {
 
 	@Test
 	void runWhenHasIncludedProfilesWithProfileSpecificDocumentThrowsException() {
-		assertThatExceptionOfType(InactiveConfigDataAccessException.class).isThrownBy(() -> this.application
-				.run("--spring.config.location=classpath:application-include-profiles-in-profile-specific.properties"));
+		assertThatExceptionOfType(InactiveConfigDataAccessException.class).isThrownBy(() -> this.application.run(
+				"--spring.config.location=classpath:application-include-profiles-in-profile-specific-document.properties"));
+	}
+
+	@Test
+	void runWhenHasIncludedProfilesWithProfileSpecificFileThrowsException() {
+		assertThatExceptionOfType(InvalidConfigDataPropertyException.class).isThrownBy(() -> this.application
+				.run("--spring.config.name=application-include-profiles-in-profile-specific-file"));
 	}
 
 	@Test
